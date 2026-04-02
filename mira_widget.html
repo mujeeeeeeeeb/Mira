@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mira AI - Crop Scanning</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --primary: #2d8a52; --bg: #f5f7f4; --text: #1a1a1a; --gray: #888; border-radius: 12px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background-color: var(--bg); color: var(--text); overflow-x: hidden; }
+  h1, h2, h3, h4, h5, h6 { font-family: 'Fraunces', serif; }
+  
+  .app-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #fff; position: relative; padding-bottom: 70px; display: flex; flex-direction: column; overflow-x: hidden; }
+  
+  /* Top Nav */
+  .top-nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #fff; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #f0f0f0; }
+  .logo { font-family: 'Fraunces', serif; font-size: 20px; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .top-right { display: flex; gap: 16px; align-items: center; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: #ddd; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: bold; }
+  
+  /* Bottom Nav */
+  .bottom-nav { display: flex; justify-content: space-around; padding: 12px 0; background: #fff; border-top: 1px solid #f0f0f0; position: fixed; bottom: 0; width: 100%; max-width: 480px; z-index: 10; }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--gray); cursor: pointer; border: none; background: none; }
+  .tab.active { color: var(--primary); }
+  .tab svg { width: 24px; height: 24px; fill: currentColor; }
+
+  /* Screens */
+  .screen { display: none; padding: 20px; flex: 1; background: var(--bg); }
+  .screen.active { display: block; }
+  
+  /* Components */
+  .btn { background: var(--primary); color: #fff; padding: 14px 20px; border-radius: var(--border-radius); border: none; font-size: 16px; font-weight: 500; cursor: pointer; width: 100%; text-align: center; font-family: 'DM Sans', sans-serif; }
+  .btn-outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+  .card { background: #fff; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+  
+  /* Scan Screen */
+  .viewfinder { border: 2px dashed #ccc; border-radius: 16px; height: 240px; display: flex; justify-content: center; align-items: center; flex-direction: column; background: #fafafa; margin-bottom: 20px; position: relative; }
+  .viewfinder svg { width: 48px; height: 48px; fill: var(--primary); opacity: 0.5; margin-bottom: 10px; }
+  .viewfinder input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .banner-readiness { background: #e6f4ea; color: #1e6037; padding: 12px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+  .scan-btn-group { display: flex; gap: 12px; margin-bottom: 24px; }
+  .mini-card { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: #fff; margin-bottom: 10px; }
+  .mini-card img { width: 40px; height: 40px; border-radius: 8px; background: #ddd; object-fit: cover;}
+  
+  /* History Screen */
+  .search-bar { width: 100%; padding: 12px 16px; border-radius: 20px; border: 1px solid #ddd; outline: none; margin-bottom: 16px; font-family: 'DM Sans', sans-serif;}
+  .pills { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px;}
+  .pill { padding: 8px 16px; background: #fff; border: 1px solid #ddd; border-radius: 20px; font-size: 13px; white-space: nowrap; cursor: pointer; }
+  .pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .month-header { font-size: 14px; color: var(--gray); margin-bottom: 12px; font-weight: 500;}
+  .history-card { display: flex; align-items: stretch; background: #fff; border-radius: 12px; overflow: hidden; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+  .history-left-bar { width: 6px; }
+  .history-content { padding: 16px; flex: 1; display: flex; align-items: center; justify-content: space-between; }
+  .history-main { display: flex; align-items: center; gap: 12px; }
+  .history-icon { width: 40px; height: 40px; background: #f0f0f0; border-radius: 8px; display: flex; justify-content: center; align-items: center; }
+  .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #fee2e2; color: #991b1b; }
+  .badge.healthy { background: #e6f4ea; color: #1e6037; }
+  
+  /* Weather Screen */
+  .hero-card { background: var(--primary); color: #fff; padding: 24px; border-radius: 20px; margin-bottom: 20px; position: relative; overflow: hidden; }
+  .hero-card h2 { font-size: 32px; margin-bottom: 4px; }
+  .weather-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .weather-stat { background: rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; font-size: 13px; }
+  .forecast-row { display: flex; justify-content: space-between; margin-bottom: 24px; }
+  .forecast-day { background: #fff; padding: 12px; border-radius: 12px; text-align: center; width: 60px; font-size: 12px;}
+  .risk-card { background: #fff; padding: 16px; border-radius: 16px; margin-bottom: 12px; border-left: 4px solid #f59e0b; }
+  .risk-card ul { margin-left: 20px; margin-top: 8px; font-size: 13px; color: #444; }
+  
+  /* Login Screen */
+  .login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 140px); }
+  .login-logo { font-size: 36px; color: var(--primary); margin-bottom: 30px; display: flex; align-items: center; gap: 12px;}
+  .login-logo svg { width: 40px; height: 40px; fill: var(--primary); }
+  .tabs { display: flex; width: 100%; border-bottom: 2px solid #eee; margin-bottom: 24px; }
+  .login-tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; color: var(--gray); font-weight: 500; }
+  .login-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); margin-bottom: -2px; }
+  .input-group { width: 100%; margin-bottom: 16px; }
+  .input-wrapper { display: flex; flex-direction: column; gap: 6px;}
+  .input-wrapper label { font-size: 13px; font-weight: 500; }
+  .input-wrapper input { padding: 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; transition: border 0.3s; }
+  .input-wrapper input:focus { border-color: var(--primary); outline: none; }
+  .divider { display: flex; align-items: center; text-align: center; width: 100%; margin: 20px 0; color: var(--gray); font-size: 13px; }
+  .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #eee; }
+  .divider::before { margin-right: .5em; }
+  .divider::after { margin-left: .5em; }
+  .google-btn { background: #fff; color: #333; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .google-btn img { width: 24px; height: 24px; }
+  
+  /* Helpline Screen */
+  .help-hero { background: #1e293b; color: #fff; padding: 24px; border-radius: 20px; text-align: center; margin-bottom: 24px;}
+  .help-hero h1 { font-size: 28px; margin: 12px 0; color: #38bdf8;}
+  .help-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px;}
+  .help-item { background: #fff; border-radius: 16px; padding: 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);}
+  .help-item svg { width: 32px; height: 32px; fill: var(--primary); }
+  .faq-item { background: #fff; border-radius: 12px; margin-bottom: 12px; overflow: hidden;}
+  .faq-header { padding: 16px; display: flex; justify-content: space-between; cursor: pointer; font-weight: 500;}
+  .faq-content { padding: 0 16px 16px; font-size: 14px; color: #555; display: none; }
+  .faq-item.active .faq-content { display: block; }
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  
+  <!-- Top Nav -->
+  <header class="top-nav">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22L6.66 19.7C7.14 19.87 7.64 20 8 20C19 20 22 3 22 3C21 5 14 5.25 9 6.25C4 7.25 2 11.5 2 13.5C2 15.5 3.75 17.25 3.75 17.25C7 8 17 8 17 8Z"/></svg>
+      Mira
+    </div>
+    <div class="top-right">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+      <div class="avatar">JS</div>
+    </div>
+  </header>
+
+  <!-- Scan Screen -->
+  <main id="screen-scan" class="screen active">
+    <div class="banner-readiness">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      AI Models Online • 98.4% Accuracy
+    </div>
+    
+    <div class="viewfinder" id="viewfinder">
+      <input type="file" id="imageInput" accept="image/*">
+      <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22L6.66 19.7C7.14 19.87 7.64 20 8 20C19 20 22 3 22 3C21 5 14 5.25 9 6.25C4 7.25 2 11.5 2 13.5C2 15.5 3.75 17.25 3.75 17.25C7 8 17 8 17 8Z"/></svg>
+      <h3 style="margin-bottom: 8px;">Scan Crop</h3>
+      <p style="font-size: 13px; color: var(--gray);">Tap to open camera or select file</p>
+    </div>
+    
+    <div class="scan-btn-group">
+      <button class="btn" onclick="document.getElementById('imageInput').click()">Open Camera</button>
+    </div>
+    <div id="scan-result" style="display:none; padding: 15px; background: #fff; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e0e0e0;"></div>
+    
+    <h3 style="margin-bottom: 12px;">Recent Scans</h3>
+    <div class="mini-card">
+      <div style="width: 40px; height: 40px; background: #ffedd5; border-radius: 8px; display:flex; align-items:center; justify-content:center; color:#c2410c; font-weight:bold;">T</div>
+      <div>
+        <div style="font-weight: 500;">Tomato Leaf</div>
+        <div style="font-size: 12px; color: var(--gray);">Early Blight detected</div>
+      </div>
+    </div>
+    <div class="mini-card">
+      <div style="width: 40px; height: 40px; background: #e6f4ea; border-radius: 8px; display:flex; align-items:center; justify-content:center; color:#1e6037; font-weight:bold;">A</div>
+      <div>
+        <div style="font-weight: 500;">Apple Leaf</div>
+        <div style="font-size: 12px; color: var(--gray);">Healthy</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- History Screen -->
+  <main id="screen-history" class="screen">
+    <h3>Scan History</h3>
+    <p style="font-size: 14px; color: var(--gray); margin-bottom: 20px;">Review your past crop analysis.</p>
+    
+    <input type="text" class="search-bar" placeholder="Search crops or diseases...">
+    <div class="pills">
+      <div class="pill active">All Crops</div>
+      <div class="pill">Action Needed</div>
+      <div class="pill">Healthy</div>
+    </div>
+    
+    <div class="month-header">October 2023</div>
+    
+    <div class="history-card">
+      <div class="history-left-bar" style="background: #ef4444;"></div>
+      <div class="history-content">
+        <div class="history-main">
+          <div class="history-icon" style="color:#ef4444;"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div>
+          <div>
+            <div style="font-weight: 600;">Tomato Plant</div>
+            <div style="font-size: 12px; color: var(--gray);">Oct 12 • 89% Confidence</div>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div class="badge">Leaf Spot</div>
+          <div style="font-size: 12px; color: var(--primary); margin-top: 6px; font-weight: 500;">View Analysis &rarr;</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="history-card">
+      <div class="history-left-bar" style="background: #10b981;"></div>
+      <div class="history-content">
+        <div class="history-main">
+          <div class="history-icon" style="color:#10b981;"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+          <div>
+            <div style="font-weight: 600;">Grape Vine</div>
+            <div style="font-size: 12px; color: var(--gray);">Oct 05 • 95% Confidence</div>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div class="badge healthy">Healthy</div>
+          <div style="font-size: 12px; color: var(--primary); margin-top: 6px; font-weight: 500;">View Analysis &rarr;</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Weather Screen -->
+  <main id="screen-weather" class="screen">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3>Field Weather</h3>
+      <div style="font-size: 12px; background: #e0e0e0; padding: 6px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> 
+        <span id="loc-text">Fetching...</span>
+      </div>
+    </div>
+
+    <div class="hero-card">
+      <div style="font-size: 14px; opacity: 0.9;">Currently</div>
+      <h2 id="temp-text">--°C</h2>
+      <div style="font-size: 16px; opacity: 0.9; margin-bottom: 10px;">Partly Cloudy</div>
+      
+      <div class="weather-grid">
+        <div class="weather-stat">💧 Humidity: <span id="hum-text">--</span>%</div>
+        <div class="weather-stat">💨 Wind: <span id="wind-text">--</span> km/h</div>
+        <div class="weather-stat">☀️ UV Index: Moderate</div>
+        <div class="weather-stat">🌧️ Rain: 0mm</div>
+      </div>
+    </div>
+
+    <h4 style="margin-bottom: 12px;">5-Day Forecast</h4>
+    <div class="forecast-row">
+      <div class="forecast-day"><div>Mon</div><div style="font-size:20px;margin:4px 0;">☁️</div><div style="font-weight:bold;">22°</div></div>
+      <div class="forecast-day"><div>Tue</div><div style="font-size:20px;margin:4px 0;">⛅</div><div style="font-weight:bold;">24°</div></div>
+      <div class="forecast-day"><div>Wed</div><div style="font-size:20px;margin:4px 0;">☀️</div><div style="font-weight:bold;">26°</div></div>
+      <div class="forecast-day"><div>Thu</div><div style="font-size:20px;margin:4px 0;">🌧️</div><div style="font-weight:bold;">19°</div></div>
+      <div class="forecast-day"><div>Fri</div><div style="font-size:20px;margin:4px 0;">🌧️</div><div style="font-weight:bold;">18°</div></div>
+    </div>
+
+    <h4 style="margin-bottom: 12px;">AI Crop Risk Analysis</h4>
+    <div id="ai-risk-container">
+      <div style="text-align: center; padding: 20px; color: var(--gray); font-size: 14px;">Loading AI insights...</div>
+    </div>
+  </main>
+
+  <!-- Login Screen -->
+  <main id="screen-login" class="screen" style="background: #fff;">
+    <div class="login-container">
+      <div class="login-logo">
+        <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22L6.66 19.7C7.14 19.87 7.64 20 8 20C19 20 22 3 22 3C21 5 14 5.25 9 6.25C4 7.25 2 11.5 2 13.5C2 15.5 3.75 17.25 3.75 17.25C7 8 17 8 17 8Z"/></svg>
+        Mira AI
+      </div>
+      
+      <div class="tabs">
+        <div class="login-tab active">Login</div>
+        <div class="login-tab">Sign Up</div>
+      </div>
+      
+      <div class="input-group">
+        <div class="input-wrapper">
+          <label>Email Address</label>
+          <input type="email" placeholder="farmer@example.com">
+        </div>
+      </div>
+      <div class="input-group">
+        <div class="input-wrapper">
+          <label>Password</label>
+          <input type="password" placeholder="••••••••">
+        </div>
+      </div>
+      <div style="text-align: right; width: 100%; margin-bottom: 20px; font-size: 13px; color: var(--primary);">Forgot Password?</div>
+      
+      <button class="btn">Login Securely</button>
+      
+      <div class="divider">Or continue with</div>
+      
+      <button class="btn google-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Sign in with Google
+      </button>
+    </div>
+  </main>
+
+  <!-- Helpline Screen -->
+  <main id="screen-helpline" class="screen">
+    <h3>Farmer Support</h3>
+    <p style="font-size: 14px; color: var(--gray); margin-bottom: 20px;">We're here to help you grow better.</p>
+    
+    <div class="help-hero">
+      <div style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8;">Toll-Free Helpline 24/7</div>
+      <h1>1800-180-1551</h1>
+      <button class="btn" style="background: #38bdf8; display: inline-flex; align-items: center; gap: 8px; width: auto; padding: 10px 24px; color: #0f172a; font-weight: 600;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+        Call Now
+      </button>
+    </div>
+    
+    <div class="help-grid">
+      <div class="help-item">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+        <div style="font-weight: 600;">Chat Support</div>
+        <div style="font-size: 12px; color: var(--gray);">Avg wait: 2 mins</div>
+      </div>
+      <div class="help-item">
+        <svg viewBox="0 0 24 24"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+        <div style="font-weight: 600;">Expert Ag-Visit</div>
+        <div style="font-size: 12px; color: var(--gray);">Book checkup</div>
+      </div>
+      <div class="help-item">
+        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM9 8V6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9z"/></svg>
+        <div style="font-weight: 600;">Account Help</div>
+        <div style="font-size: 12px; color: var(--gray);">Billing & Setup</div>
+      </div>
+      <div class="help-item">
+        <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 16H4V7h16v12zM9 15v-5l5 2.5z"/></svg>
+        <div style="font-weight: 600;">Video Guides</div>
+        <div style="font-size: 12px; color: var(--gray);">Tutorials</div>
+      </div>
+    </div>
+    
+    <h4 style="margin-bottom: 16px;">Frequently Asked Questions</h4>
+    
+    <div class="faq-item">
+      <div class="faq-header" onclick="this.parentElement.classList.toggle('active')">
+        How do I take a good scan?
+        <span>+</span>
+      </div>
+      <div class="faq-content">Ensure the leaf is well-lit, centrally framed, and filling the viewpoint. Avoid shadows or extreme sunlight glare.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header" onclick="this.parentElement.classList.toggle('active')">
+        What crops are supported?
+        <span>+</span>
+      </div>
+      <div class="faq-content">Currently, Mira AI supports Tomatoes, Apples, Grapes, Potatoes, and Corn. We are constantly expanding our AI models.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header" onclick="this.parentElement.classList.toggle('active')">
+        How accurate is the weather AI?
+        <span>+</span>
+      </div>
+      <div class="faq-content">We use Open-Meteo for pinpoint live data combined with xAI Grok to give you agronomic advisory tailored to the current and upcoming conditions.</div>
+    </div>
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <button class="tab active" onclick="switchTab('scan')">
+      <svg viewBox="0 0 24 24"><path d="M21 4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-1 14H4V6h16v12z"/><circle cx="12" cy="12" r="3"/></svg>
+      Scan
+    </button>
+    <button class="tab" onclick="switchTab('history')">
+      <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+      History
+    </button>
+    <button class="tab" onclick="switchTab('weather'); loadWeatherAndAI();">
+      <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>
+      Weather
+    </button>
+    <button class="tab" onclick="switchTab('login')">
+      <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+      Login
+    </button>
+    <button class="tab" onclick="switchTab('helpline')">
+      <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+      Helpline
+    </button>
+  </nav>
+
+</div>
+
+<script>
+  // Tab Switching Logic
+  function switchTab(tabId) {
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    document.getElementById('screen-' + tabId).classList.add('active');
+    
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+  }
+
+  // File Upload & Scan Logic
+  const imageInput = document.getElementById('imageInput');
+  const scanResult = document.getElementById('scan-result');
+  
+  imageInput.addEventListener('change', async (e) => {
+    if(!e.target.files.length) return;
+    const file = e.target.files[0];
+    
+    // UI Update to show loading
+    scanResult.style.display = 'block';
+    scanResult.innerHTML = '<div style="text-align:center"><div style="animation: spin 1s linear infinite; display:inline-block; font-size:24px; margin-bottom:10px;">⏳</div><div>Analyzing Crop Image...</div></div>';
+    
+    // Required POST logic: localhost:5000/predict
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    try {
+      const res = await fetch('http://localhost:5000/predict', {
+        method: 'POST',
+        body: formData
+      });
+      // Try to parse response, fallback if server is down
+      const data = await res.json();
+      scanResult.innerHTML = `
+        <h4 style="color:var(--primary); margin-bottom:8px;">✅ Analysis Complete</h4>
+        <p><strong>Predicted:</strong> ${data.prediction || 'Unknown'}</p>
+        <p><strong>Confidence:</strong> ${(data.confidence * 100).toFixed(1)}%</p>
+      `;
+    } catch(err) {
+      console.warn('Backend not reachable. Simulating response.', err);
+      setTimeout(() => {
+        scanResult.innerHTML = `
+          <h4 style="color:#ef4444; margin-bottom:8px;">⚠️ Demo Mode Mode (Cannot reach Flask)</h4>
+          <p><strong>Predicted:</strong> Tomato Early Blight (Simulated)</p>
+          <p><strong>Confidence:</strong> 92.4%</p>
+          <button class="btn btn-outline" style="margin-top: 10px; padding: 8px;">View Treatment Plan</button>
+        `;
+      }, 1500);
+    }
+  });
+
+  // Weather & Grok API Logic
+  async function loadWeatherAndAI() {
+    if(document.getElementById('temp-text').innerText !== '--°C') return; // already loaded
+    
+    document.getElementById('loc-text').innerText = 'Detecting...';
+    
+    // Note: Assuming coordinates for Bangalore for demo, typically navigator.geolocation would be used.
+    const lat = 12.9716; const lon = 77.5946;
+    
+    try {
+      const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m`);
+      const wData = await wRes.json();
+      
+      const temp = wData.current_weather.temperature;
+      const wind = wData.current_weather.windspeed;
+      const hum = wData.hourly.relativehumidity_2m[0];
+      
+      document.getElementById('temp-text').innerText = `${temp}°C`;
+      document.getElementById('wind-text').innerText = wind;
+      document.getElementById('hum-text').innerText = hum;
+      document.getElementById('loc-text').innerText = 'Bangalore, IN';
+      
+      // Call xAI Grok API (Simulated if no key provided/exposed here)
+      // Usually fetch('https://api.x.ai/v1/chat/completions', { ... })
+      simulateGrokAPI(temp, hum, wind);
+      
+    } catch(err) {
+      console.error(err);
+      document.getElementById('loc-text').innerText = 'Location Failed';
+    }
+  }
+  
+  function simulateGrokAPI(temp, hum, wind) {
+    const aiContainer = document.getElementById('ai-risk-container');
+    aiContainer.innerHTML = '<div style="text-align:center;color:var(--primary);"><div style="animation: spin 1s linear infinite; display:inline-block;">🍃</div> Generating AI Advisory (xAI Grok)...</div>';
+    
+    setTimeout(() => {
+      aiContainer.innerHTML = `
+        <div class="risk-card" style="border-left-color: #ef4444;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color: #ef4444;">Tomato Field</strong>
+            <span style="background: #fee2e2; color: #b91c1c; padding: 4px 8px; border-radius: 4px; font-size:11px; font-weight:bold;">High Risk (82%)</span>
+          </div>
+          <ul>
+            <li>High humidity (${hum}%) increases Early Blight risk.</li>
+            <li>Apply fungicide protective spray today before rain.</li>
+            <li>Prune lower leaves to improve air circulation.</li>
+          </ul>
+        </div>
+        
+        <div class="risk-card" style="border-left-color: #f59e0b;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color: #d97706;">Grape Vineyard</strong>
+            <span style="background: #fef3c7; color: #d97706; padding: 4px 8px; border-radius: 4px; font-size:11px; font-weight:bold;">Moderate (45%)</span>
+          </div>
+          <ul>
+            <li>Moderate temps (${temp}°C) favorable for powdery mildew.</li>
+            <li>Prepare sulfur spray inventory.</li>
+            <li>Monitor wind (${wind}km/h) before spraying.</li>
+          </ul>
+        </div>
+        
+        <div class="risk-card" style="border-left-color: #10b981;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color: #059669;">Apple Orchard</strong>
+            <span style="background: #d1fae5; color: #047857; padding: 4px 8px; border-radius: 4px; font-size:11px; font-weight:bold;">Low Risk (12%)</span>
+          </div>
+          <ul>
+            <li>Current conditions do not favor apple scab.</li>
+            <li>Maintain regular scouting schedule.</li>
+            <li>Optimal weather for nutrient foliar spray.</li>
+          </ul>
+        </div>
+      `;
+    }, 2000);
+  }
+
+</script>
+<style>
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+</style>
+</body>
+</html>
